@@ -37,6 +37,40 @@
       -webkit-font-smoothing: antialiased;
     }
 
+    /* PASSWORD GATE */
+    #gate {
+      position:fixed; inset:0; z-index:1000; background:var(--bg);
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      text-align:center; padding:40px; overflow:hidden;
+    }
+    #gate .blob { position:absolute; border-radius:50%; filter:blur(80px); opacity:.32; }
+    #gate > * { position:relative; z-index:1; }
+    .gate-eyebrow { font-size:10px; letter-spacing:6px; text-transform:uppercase; color:var(--blush); font-weight:400; margin-bottom:28px; }
+    .gate-names { font-family:var(--serif); font-size:clamp(40px,10vw,72px); font-weight:400; line-height:.9; color:var(--ink); letter-spacing:-2px; }
+    .gate-and { font-style:italic; color:var(--blush); font-weight:300; }
+    .gate-info { margin-top:26px; display:flex; flex-direction:column; gap:6px; }
+    .gate-date { font-size:11px; letter-spacing:6px; text-transform:uppercase; color:var(--mid); font-weight:300; }
+    .gate-loc { font-family:var(--serif); font-style:italic; font-size:18px; color:var(--light); font-weight:300; }
+    .gate-thanks { margin-top:24px; max-width:600px; font-size:14px; line-height:1.7; color:var(--mid); font-weight:300; }
+    .gate-form { margin-top:36px; display:flex; flex-direction:column; align-items:center; gap:14px; }
+    .gate-input {
+      width:min(280px, 70vw); padding:13px 20px; border-radius:40px;
+      border:1.5px solid var(--blush-light); background:#fff; color:var(--ink);
+      font-family:var(--sans); font-size:14px; text-align:center; letter-spacing:1px;
+      outline:none; transition:border-color .2s;
+    }
+    .gate-input:focus { border-color:var(--blush); }
+    .gate-submit {
+      padding:11px 30px; border:1.5px solid var(--gold); background:transparent; color:var(--gold);
+      font-family:var(--sans); font-size:11px; letter-spacing:2px; text-transform:uppercase;
+      cursor:pointer; border-radius:40px; transition:all .25s ease;
+    }
+    .gate-submit:hover { background:var(--gold); color:#fff; }
+    .gate-error { font-size:12px; color:#C77; font-weight:300; min-height:16px; }
+
+    #site-content { display:none; }
+    #site-content.unlocked { display:block; }
+
     /* HERO */
     .hero {
       min-height:70svh; display:flex; flex-direction:column;
@@ -58,7 +92,13 @@
     .hero-info { margin-top:32px; display:flex; flex-direction:column; align-items:center; gap:8px; }
     .hero-date { font-size:11px; letter-spacing:6px; text-transform:uppercase; color:var(--mid); font-weight:300; }
     .hero-loc { font-family:var(--serif); font-style:italic; font-size:20px; color:var(--light); font-weight:300; }
-    .hero-thanks { margin-top:28px; max-width:440px; font-size:14px; line-height:1.9; color:var(--mid); font-weight:300; }
+    .hero-thanks {
+      margin-top:28px; max-width:700px;
+      font-size:clamp(13px,1.6vw,16px); line-height:1.7;
+      color:var(--mid); font-weight:300;
+      white-space:nowrap;
+    }
+    @media(max-width:480px){ .hero-thanks{ white-space:normal; } }
 
     /* SECTIONS */
     .section { padding:56px 32px; max-width:1000px; margin:0 auto; }
@@ -98,6 +138,13 @@
     }
     .load-more-btn:hover { background:var(--gold); color:#fff; }
     .load-more-btn:disabled { opacity:.4; cursor:default; }
+
+    .video-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px; }
+    .video-wrap {
+      position:relative; width:100%; padding-top:56.25%; border-radius:12px; overflow:hidden;
+      box-shadow:0 4px 32px rgba(180,140,100,.1);
+    }
+    .video-wrap iframe { position:absolute; inset:0; width:100%; height:100%; border:0; }
 
     .empty-note {
       font-size:13px; color:var(--light); font-weight:300; font-style:italic;
@@ -164,6 +211,26 @@
 </head>
 <body>
 
+  <!-- PASSWORD GATE -->
+  <div id="gate">
+    <div class="blob" style="width:400px;height:400px;background:#F2D0C6;top:-100px;left:-150px;"></div>
+    <div class="blob" style="width:350px;height:350px;background:#C8DECC;top:30px;right:-100px;"></div>
+    <p class="gate-eyebrow">Thank you for celebrating with us</p>
+    <h1 class="gate-names">Marcial<span class="gate-and">&amp;</span>Nadine</h1>
+    <div class="gate-info">
+      <p class="gate-date">Friday · 31 July 2026</p>
+      <p class="gate-loc">Rotterdam, The Netherlands</p>
+    </div>
+    <p class="gate-thanks">Here are the moments from our day, thank you for being part of it!</p>
+    <form class="gate-form" id="gateForm" autocomplete="off">
+      <input type="password" class="gate-input" id="gateInput" placeholder="Password" autofocus>
+      <button type="submit" class="gate-submit">Enter</button>
+      <p class="gate-error" id="gateError"></p>
+    </form>
+  </div>
+
+  <div id="site-content">
+
   <!-- HERO -->
   <section class="hero">
     <div class="hero-bg">
@@ -203,8 +270,19 @@
     </div>
   </div>
 
+  <!-- VIDEO -->
+  <div class="section reveal">
+    <div class="s-header">
+      <h2 class="s-title">Our Wedding Film</h2>
+    </div>
+    <div id="video-content"></div>
+  </div>
+
   <!-- GALLERIES: tab bar + one active panel, filled in by script below -->
   <div class="section reveal">
+    <div class="s-header">
+      <h2 class="s-title">Relive the Day</h2>
+    </div>
     <div class="tabs" id="tabs"></div>
     <div id="tab-content"></div>
   </div>
@@ -226,7 +304,34 @@
     <p class="footer-fine">Marcial &amp; Nadine · Rotterdam · 2026</p>
   </footer>
 
+  </div>
+
 <script>
+  /* ============ VIDEOS: add entries here once you receive the footage ===
+     Each entry needs a title and an embeddable URL (YouTube/Vimeo "embed"
+     link, not the regular watch/share link). Leave the array empty to
+     show the "coming soon" placeholder.
+     Example:
+     { title: 'Ceremony Highlights', embedUrl: 'https://www.youtube.com/embed/XXXXXXXXXXX' },
+  =================================================================== */
+  const VIDEOS = [
+    // { title: 'Wedding Film', embedUrl: 'https://www.youtube.com/embed/XXXXXXXXXXX' },
+  ];
+
+  function renderVideos() {
+    const container = document.getElementById('video-content');
+    if (!VIDEOS.length) {
+      container.innerHTML = `<p class="empty-note">Video coming soon — check back once we've received the footage!</p>`;
+      return;
+    }
+    container.innerHTML = `<div class="video-grid">${VIDEOS.map(v => `
+      <div class="video-wrap">
+        <iframe src="${v.embedUrl}" title="${v.title}" loading="lazy"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowfullscreen></iframe>
+      </div>`).join('')}</div>`;
+  }
+
   /* ============ CONFIG: one entry per moment of the day ============
      key    -> folder name inside /photos/
      title  -> tab label / section heading
@@ -241,6 +346,7 @@
     { key: 'party',     title: 'Party 🎶',         maxTry: 400 },
   ];
 
+  const FIRST_BATCH = 10;
   const BATCH_SIZE = 30;
   const ROW_GAP = 8;
 
@@ -282,8 +388,10 @@
     return urls;
   }
 
-  function targetRowHeight() {
-    return window.innerWidth < 560 ? 130 : 220;
+  function targetRowHeight(kind) {
+    const mobile = window.innerWidth < 560;
+    if (kind === 'hero') return mobile ? 175 : 300;
+    return mobile ? 130 : 220;
   }
 
   // Measures one photo's aspect ratio via its (small) thumbnail, falling
@@ -310,10 +418,9 @@
   // it fill edge to edge. The final, still-incomplete row is left at the
   // target height, unstretched — never a ragged gap, just a normal-looking
   // partial row exactly like Flickr/Google Photos do.
-  function layoutRows(items, containerWidth) {
+  function layoutRows(items, containerWidth, targetH) {
     const rows = [];
     let buffer = [];
-    const targetH = targetRowHeight();
 
     items.forEach(item => {
       buffer.push(item);
@@ -342,9 +449,12 @@
     }
 
     const containerWidth = content.clientWidth || content.parentElement.clientWidth;
-    const rows = layoutRows(s.items, containerWidth);
+    const heroItems = s.items.slice(0, FIRST_BATCH);
+    const restItems = s.items.slice(FIRST_BATCH);
+    const heroRows = layoutRows(heroItems, containerWidth, targetRowHeight('hero'));
+    const restRows = layoutRows(restItems, containerWidth, targetRowHeight('normal'));
 
-    const rowsHTML = rows.map(row => `
+    const renderRow = row => `
       <div class="gallery-row" style="height:${row.height}px">
         ${row.items.map(it => {
           const idx = s.items.findIndex(x => x.fullSrc === it.fullSrc);
@@ -353,7 +463,9 @@
             <img src="${it.thumbSrc}" loading="lazy" alt="${activeKey} photo">
           </figure>`;
         }).join('')}
-      </div>`).join('');
+      </div>`;
+
+    const rowsHTML = heroRows.map(renderRow).join('') + restRows.map(renderRow).join('');
 
     const hasMore = s.loadedCount < s.urls.length;
     content.innerHTML = `
@@ -365,13 +477,13 @@
     }
   }
 
-  async function loadNextBatch(key) {
+  async function loadNextBatch(key, count = BATCH_SIZE) {
     const s = state[key];
     const moment = MOMENTS.find(m => m.key === key);
     const btn = document.getElementById('loadMoreBtn');
     if (btn) { btn.disabled = true; btn.textContent = 'Loading…'; }
 
-    const nextNums = s.urls.slice(s.loadedCount, s.loadedCount + BATCH_SIZE);
+    const nextNums = s.urls.slice(s.loadedCount, s.loadedCount + count);
     const measured = await Promise.all(nextNums.map(num => measureItem(moment, num)));
     s.items.push(...measured);
     s.loadedCount += nextNums.length;
@@ -390,7 +502,7 @@
       const moment = MOMENTS.find(m => m.key === key);
       s.urls = await discoverUrls(moment);
       s.built = true;
-      if (s.urls.length) await loadNextBatch(key);
+      if (s.urls.length) await loadNextBatch(key, FIRST_BATCH);
       else renderActiveTab();
     } else {
       renderActiveTab();
@@ -443,6 +555,44 @@
   buildTabs();
   openTab(activeKey);
   initReveal();
+  renderVideos();
+
+  /* ============ PASSWORD GATE ============
+     The password itself isn't stored in plain text here — only its
+     SHA-256 hash — so casually viewing the page source doesn't reveal it.
+     This is a soft privacy gate for a personal site, not real security.
+  =========================================== */
+  const GATE_HASH = '574d20df1712b1620f44c8c6ae44f80f4e6a6acb371cf1ac08a82a4d2ef53972';
+  const GATE_STORAGE_KEY = 'wedding-site-unlocked';
+
+  async function sha256(text) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  function unlockSite() {
+    document.getElementById('gate').style.display = 'none';
+    document.getElementById('site-content').classList.add('unlocked');
+  }
+
+  if (localStorage.getItem(GATE_STORAGE_KEY) === '1') {
+    unlockSite();
+  }
+
+  document.getElementById('gateForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const input = document.getElementById('gateInput');
+    const errorEl = document.getElementById('gateError');
+    const hash = await sha256(input.value);
+    if (hash === GATE_HASH) {
+      localStorage.setItem(GATE_STORAGE_KEY, '1');
+      unlockSite();
+    } else {
+      errorEl.textContent = 'Incorrect password, please try again.';
+      input.value = '';
+      input.focus();
+    }
+  });
 </script>
 </body>
 </html>
