@@ -257,12 +257,27 @@
     return fetch(src, { method: 'HEAD' }).then(res => res.ok).catch(() => false);
   }
 
+  const DISCOVER_CHUNK = 20;
+
   async function discoverUrls(moment) {
     const urls = [];
-    for (let i = 1; i <= moment.maxTry; i++) {
-      const ok = await tryLoad(`photos/${moment.key}/${i}.jpg`);
-      if (!ok) break;
-      urls.push(i);
+    for (let start = 1; start <= moment.maxTry; start += DISCOVER_CHUNK) {
+      const nums = [];
+      for (let i = start; i < start + DISCOVER_CHUNK && i <= moment.maxTry; i++) nums.push(i);
+      // Check this whole chunk of candidate photo numbers at once, rather
+      // than one network round-trip at a time — much faster for large
+      // photo counts, since latency is paid once per chunk, not once per photo.
+      const results = await Promise.all(nums.map(n => tryLoad(`photos/${moment.key}/${n}.jpg`)));
+      let hitGap = false;
+      for (let i = 0; i < results.length; i++) {
+        if (results[i]) {
+          urls.push(nums[i]);
+        } else {
+          hitGap = true;
+          break;
+        }
+      }
+      if (hitGap) break;
     }
     return urls;
   }
