@@ -284,7 +284,7 @@
   </div>
 
   <!-- GALLERIES: tab bar + one active panel, filled in by script below -->
-  <div class="section reveal">
+  <div class="section reveal" id="gallery-section">
     <div class="s-header">
       <h2 class="s-title">Relive the Day</h2>
     </div>
@@ -577,7 +577,9 @@
     backToTopBtn.classList.toggle('show', window.scrollY > 600);
   });
   backToTopBtn.addEventListener('click', () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    const target = document.getElementById('gallery-section');
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    else window.scrollTo({ top: 0, behavior: 'smooth' });
   });
 
   /* ============ PASSWORD GATE ============
