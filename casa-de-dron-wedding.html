@@ -66,21 +66,38 @@
     .s-title { font-family:var(--serif); font-size:clamp(26px,4vw,36px); font-weight:400; color:var(--ink); }
     .s-title .emoji { font-family:var(--sans); }
 
-    .gallery-grid {
-      display:grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-      gap:8px;
+    .tabs {
+      display:flex; gap:4px; flex-wrap:wrap;
+      margin-bottom:32px; padding:6px;
+      background:var(--ivory); border-radius:40px;
+      box-shadow:inset 0 1px 3px rgba(0,0,0,.04);
     }
-    .gallery-grid figure {
-      position:relative; overflow:hidden; border-radius:8px;
-      aspect-ratio: 1 / 1; cursor:pointer;
-      box-shadow:0 2px 10px rgba(180,140,100,.08);
+    .tab-btn {
+      flex:1 1 auto; padding:10px 20px; border-radius:30px; border:none;
+      background:transparent; color:var(--mid); font-family:var(--sans);
+      font-size:12px; letter-spacing:1px; cursor:pointer; transition:all .2s;
+      white-space:nowrap;
     }
-    .gallery-grid img {
-      width:100%; height:100%; object-fit:cover; display:block;
-      transition:transform .5s cubic-bezier(0.16,1,0.3,1);
+    .tab-btn:hover:not(.active) { color:var(--ink); }
+    .tab-btn.active { background:#fff; color:var(--ink); box-shadow:0 2px 10px rgba(180,140,100,.15); font-weight:500; }
+
+    .gallery-rows { display:flex; flex-direction:column; gap:8px; }
+    .gallery-row { display:flex; gap:8px; }
+    .gallery-row figure {
+      position:relative; overflow:hidden; border-radius:8px; cursor:pointer;
+      flex-shrink:0; box-shadow:0 2px 10px rgba(180,140,100,.08); background:var(--ivory);
     }
-    .gallery-grid figure:hover img { transform:scale(1.06); }
+    .gallery-row img { width:100%; height:100%; display:block; object-fit:cover; transition:transform .4s ease; }
+    .gallery-row figure:hover img { transform:scale(1.04); }
+
+    .load-more-wrap { text-align:center; margin-top:28px; }
+    .load-more-btn {
+      padding:12px 30px; border:1.5px solid var(--gold); background:transparent; color:var(--gold);
+      font-family:var(--sans); font-size:11px; letter-spacing:2px; text-transform:uppercase;
+      cursor:pointer; border-radius:40px; transition:all .25s ease;
+    }
+    .load-more-btn:hover { background:var(--gold); color:#fff; }
+    .load-more-btn:disabled { opacity:.4; cursor:default; }
 
     .empty-note {
       font-size:13px; color:var(--light); font-weight:300; font-style:italic;
@@ -142,8 +159,6 @@
 
     @media(max-width:520px){
       .section{padding:44px 18px;}
-      .fund-wrap{padding:26px 22px;}
-      .gallery-grid{grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));}
     }
   </style>
 </head>
@@ -188,8 +203,11 @@
     </div>
   </div>
 
-  <!-- GALLERIES: filled in by script below, one per moment -->
-  <div id="galleries"></div>
+  <!-- GALLERIES: tab bar + one active panel, filled in by script below -->
+  <div class="section reveal">
+    <div class="tabs" id="tabs"></div>
+    <div id="tab-content"></div>
+  </div>
 
   <!-- LIGHTBOX -->
   <div id="lightbox">
@@ -211,90 +229,193 @@
 <script>
   /* ============ CONFIG: one entry per moment of the day ============
      key    -> folder name inside /photos/
-     title  -> section heading
-     maxTry -> safety ceiling; the gallery stops as soon as it hits the
+     title  -> tab label / section heading
+     maxTry -> safety ceiling; discovery stops as soon as it hits the
                first missing number, so this just needs to be higher
                than the most photos you'll ever add to that folder.
   =================================================================== */
   const MOMENTS = [
-    { key: 'civil',     title: 'Civil Marriage',   maxTry: 60 },
-    { key: 'ceremony',  title: 'Wedding Ceremony', maxTry: 80 },
-    { key: 'reception', title: 'Reception',        maxTry: 80 },
-    { key: 'party',     title: 'Party 🎶',         maxTry: 120 },
+    { key: 'civil',     title: 'Civil Marriage',   maxTry: 400 },
+    { key: 'ceremony',  title: 'Wedding Ceremony', maxTry: 400 },
+    { key: 'reception', title: 'Reception',        maxTry: 400 },
+    { key: 'party',     title: 'Party 🎶',         maxTry: 400 },
   ];
 
-  let allSections = []; // { key, photos: [] }
-  let lb = { sectionIndex: 0, photoIndex: 0 };
+  const BATCH_SIZE = 30;
+  const ROW_GAP = 8;
+
+  // Per-moment state, built lazily the first time its tab is opened.
+  const state = {}; // key -> { urls: [], items: [], loadedCount: 0, built: false }
+  MOMENTS.forEach(m => state[m.key] = { urls: [], items: [], loadedCount: 0, built: false });
+
+  let activeKey = MOMENTS[0].key;
+  let lb = { key: null, photoIndex: 0 };
 
   function tryLoad(src) {
+    // HEAD requests fetch only response headers, not the image itself —
+    // so discovering which photos exist doesn't download any of them.
+    return fetch(src, { method: 'HEAD' }).then(res => res.ok).catch(() => false);
+  }
+
+  async function discoverUrls(moment) {
+    const urls = [];
+    for (let i = 1; i <= moment.maxTry; i++) {
+      const ok = await tryLoad(`photos/${moment.key}/${i}.jpg`);
+      if (!ok) break;
+      urls.push(i);
+    }
+    return urls;
+  }
+
+  function targetRowHeight() {
+    return window.innerWidth < 560 ? 130 : 220;
+  }
+
+  // Measures one photo's aspect ratio via its (small) thumbnail, falling
+  // back to the full-size image if no thumbnail exists yet.
+  function measureItem(moment, num) {
+    const thumbSrc = `photos/${moment.key}/thumbs/${num}.jpg`;
+    const fullSrc = `photos/${moment.key}/${num}.jpg`;
     return new Promise(resolve => {
       const img = new Image();
-      img.onload = () => resolve(true);
-      img.onerror = () => resolve(false);
-      img.src = src;
+      img.onload = () => resolve({ thumbSrc, fullSrc, aspect: img.naturalWidth / img.naturalHeight || 1 });
+      img.onerror = () => {
+        const img2 = new Image();
+        img2.onload = () => resolve({ thumbSrc: fullSrc, fullSrc, aspect: img2.naturalWidth / img2.naturalHeight || 1 });
+        img2.onerror = () => resolve({ thumbSrc: fullSrc, fullSrc, aspect: 1 });
+        img2.src = fullSrc;
+      };
+      img.src = thumbSrc;
     });
   }
 
-  async function loadMomentPhotos(moment) {
-    const photos = [];
-    for (let i = 1; i <= moment.maxTry; i++) {
-      const src = `photos/${moment.key}/${i}.jpg`;
-      const ok = await tryLoad(src);
-      if (!ok) break;
-      photos.push(src);
+  // Classic "justified gallery" packing: walk items left to right, and as
+  // soon as a row's items (scaled to a common height) would fill the
+  // container width, lock that row in at the exact height needed to make
+  // it fill edge to edge. The final, still-incomplete row is left at the
+  // target height, unstretched — never a ragged gap, just a normal-looking
+  // partial row exactly like Flickr/Google Photos do.
+  function layoutRows(items, containerWidth) {
+    const rows = [];
+    let buffer = [];
+    const targetH = targetRowHeight();
+
+    items.forEach(item => {
+      buffer.push(item);
+      const widthAtTarget = buffer.reduce((sum, it) => sum + it.aspect * targetH, 0)
+        + ROW_GAP * (buffer.length - 1);
+      if (widthAtTarget >= containerWidth) {
+        const totalAspect = buffer.reduce((s, it) => s + it.aspect, 0);
+        const rowHeight = (containerWidth - ROW_GAP * (buffer.length - 1)) / totalAspect;
+        rows.push({ height: rowHeight, items: buffer.map(it => ({ ...it, width: rowHeight * it.aspect })) });
+        buffer = [];
+      }
+    });
+    if (buffer.length) {
+      rows.push({ height: targetH, items: buffer.map(it => ({ ...it, width: targetH * it.aspect })) });
     }
-    return photos;
+    return rows;
   }
 
-  async function buildGalleries() {
-    const container = document.getElementById('galleries');
-    for (const moment of MOMENTS) {
-      const photos = await loadMomentPhotos(moment);
-      allSections.push({ key: moment.key, photos });
+  function renderActiveTab() {
+    const s = state[activeKey];
+    const content = document.getElementById('tab-content');
 
-      const section = document.createElement('div');
-      section.className = 'section reveal';
-      section.innerHTML = `
-        <div class="s-header">
-          <h2 class="s-title">${moment.title}</h2>
-        </div>
-        ${photos.length
-          ? `<div class="gallery-grid">${photos.map((src, i) => `
-              <figure onclick="openLightbox('${moment.key}', ${i})">
-                <img src="${src}" loading="lazy" alt="${moment.title} photo ${i + 1}">
-              </figure>`).join('')}</div>`
-          : `<p class="empty-note">Photos coming soon</p>`
-        }
-      `;
-      container.appendChild(section);
+    if (s.built && s.items.length === 0) {
+      content.innerHTML = `<p class="empty-note">Photos coming soon</p>`;
+      return;
     }
-    initReveal();
+
+    const containerWidth = content.clientWidth || content.parentElement.clientWidth;
+    const rows = layoutRows(s.items, containerWidth);
+
+    const rowsHTML = rows.map(row => `
+      <div class="gallery-row" style="height:${row.height}px">
+        ${row.items.map(it => {
+          const idx = s.items.findIndex(x => x.fullSrc === it.fullSrc);
+          return `
+          <figure style="width:${it.width}px" onclick="openLightbox('${activeKey}', ${idx})">
+            <img src="${it.thumbSrc}" loading="lazy" alt="${activeKey} photo">
+          </figure>`;
+        }).join('')}
+      </div>`).join('');
+
+    const hasMore = s.loadedCount < s.urls.length;
+    content.innerHTML = `
+      <div class="gallery-rows">${rowsHTML}</div>
+      ${hasMore ? `<div class="load-more-wrap"><button class="load-more-btn" id="loadMoreBtn">Load more</button></div>` : ''}
+    `;
+    if (hasMore) {
+      document.getElementById('loadMoreBtn').addEventListener('click', () => loadNextBatch(activeKey));
+    }
+  }
+
+  async function loadNextBatch(key) {
+    const s = state[key];
+    const moment = MOMENTS.find(m => m.key === key);
+    const btn = document.getElementById('loadMoreBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Loading…'; }
+
+    const nextNums = s.urls.slice(s.loadedCount, s.loadedCount + BATCH_SIZE);
+    const measured = await Promise.all(nextNums.map(num => measureItem(moment, num)));
+    s.items.push(...measured);
+    s.loadedCount += nextNums.length;
+
+    if (key === activeKey) renderActiveTab();
+  }
+
+  async function openTab(key) {
+    activeKey = key;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.key === key));
+
+    const s = state[key];
+    if (!s.built) {
+      const content = document.getElementById('tab-content');
+      content.innerHTML = `<p class="empty-note">Loading photos…</p>`;
+      const moment = MOMENTS.find(m => m.key === key);
+      s.urls = await discoverUrls(moment);
+      s.built = true;
+      if (s.urls.length) await loadNextBatch(key);
+      else renderActiveTab();
+    } else {
+      renderActiveTab();
+    }
+  }
+
+  function buildTabs() {
+    const tabs = document.getElementById('tabs');
+    tabs.innerHTML = MOMENTS.map((m, i) =>
+      `<button class="tab-btn${i === 0 ? ' active' : ''}" data-key="${m.key}" onclick="openTab('${m.key}')">${m.title}</button>`
+    ).join('');
   }
 
   function openLightbox(key, photoIndex) {
-    const sectionIndex = allSections.findIndex(s => s.key === key);
-    lb = { sectionIndex, photoIndex };
+    lb = { key, photoIndex };
     showLightboxImage();
     document.getElementById('lightbox').classList.add('open');
   }
-  function closeLightbox() {
-    document.getElementById('lightbox').classList.remove('open');
-  }
+  function closeLightbox() { document.getElementById('lightbox').classList.remove('open'); }
   function navLightbox(dir) {
-    const section = allSections[lb.sectionIndex];
-    lb.photoIndex = (lb.photoIndex + dir + section.photos.length) % section.photos.length;
+    const items = state[lb.key].items;
+    lb.photoIndex = (lb.photoIndex + dir + items.length) % items.length;
     showLightboxImage();
   }
   function showLightboxImage() {
-    const section = allSections[lb.sectionIndex];
-    document.getElementById('lb-img').src = section.photos[lb.photoIndex];
-    document.getElementById('lb-count').textContent = `${lb.photoIndex + 1} / ${section.photos.length}`;
+    const items = state[lb.key].items;
+    document.getElementById('lb-img').src = items[lb.photoIndex].fullSrc;
+    document.getElementById('lb-count').textContent = `${lb.photoIndex + 1} / ${items.length}`;
   }
   document.addEventListener('keydown', e => {
     if (!document.getElementById('lightbox').classList.contains('open')) return;
     if (e.key === 'Escape') closeLightbox();
     if (e.key === 'ArrowLeft') navLightbox(-1);
     if (e.key === 'ArrowRight') navLightbox(1);
+  });
+
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => { if (state[activeKey].built) renderActiveTab(); }, 200);
   });
 
   function initReveal() {
@@ -304,7 +425,9 @@
     document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
   }
 
-  buildGalleries();
+  buildTabs();
+  openTab(activeKey);
+  initReveal();
 </script>
 </body>
 </html>
