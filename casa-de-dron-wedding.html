@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Marcial & Nadine — 31.07.2026</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:           #FDFAF6;
+      --ivory:        #F8F4EE;
+      --warm:         #EEE8DF;
+      --blush:        #E8B4A8;
+      --blush-light:  #F2D5CE;
+      --blush-pale:   #FAF0ED;
+      --sage:         #8EAF9E;
+      --sage-light:   #C3D9CF;
+      --sage-pale:    #EBF3EF;
+      --gold:         #C49A6C;
+      --gold-pale:    #F5EAD8;
+      --ink:          #2A2520;
+      --mid:          #7A7268;
+      --light:        #B8B0A6;
+      --serif: 'Playfair Display', Georgia, serif;
+      --sans:  'Jost', system-ui, sans-serif;
+    }
+
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--ink);
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* HERO */
+    .hero {
+      min-height:70svh; display:flex; flex-direction:column;
+      align-items:center; justify-content:center;
+      text-align:center; padding:100px 40px 60px;
+      position:relative; overflow:hidden;
+    }
+    .hero-bg { position:absolute; inset:0; z-index:0; }
+    .blob { position:absolute; border-radius:50%; filter:blur(80px); opacity:.32; }
+    .blob-1 { width:500px; height:500px; background:#F2D0C6; top:-100px; left:-150px; }
+    .blob-2 { width:400px; height:400px; background:#C8DECC; top:50px; right:-100px; }
+    .blob-3 { width:350px; height:350px; background:#F5E4C8; bottom:-80px; left:30%; }
+    .hero > * { position:relative; z-index:1; }
+
+    .hero-eyebrow { font-size:10px; letter-spacing:6px; text-transform:uppercase; color:var(--blush); font-weight:400; margin-bottom:32px; }
+    .hero-names { font-family:var(--serif); font-size:clamp(52px,12vw,96px); font-weight:400; line-height:.9; color:var(--ink); letter-spacing:-2px; }
+    .hero-and { display:block; font-style:italic; font-size:.4em; font-weight:300; color:var(--blush); letter-spacing:8px; line-height:2; }
+
+    .hero-info { margin-top:32px; display:flex; flex-direction:column; align-items:center; gap:8px; }
+    .hero-date { font-size:11px; letter-spacing:6px; text-transform:uppercase; color:var(--mid); font-weight:300; }
+    .hero-loc { font-family:var(--serif); font-style:italic; font-size:20px; color:var(--light); font-weight:300; }
+    .hero-thanks { margin-top:28px; max-width:440px; font-size:14px; line-height:1.9; color:var(--mid); font-weight:300; }
+
+    /* SECTIONS */
+    .section { padding:56px 32px; max-width:1000px; margin:0 auto; }
+    .s-header { margin-bottom:28px; }
+    .s-title { font-family:var(--serif); font-size:clamp(26px,4vw,36px); font-weight:400; color:var(--ink); }
+    .s-title .emoji { font-family:var(--sans); }
+
+    .gallery-grid {
+      display:grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap:8px;
+    }
+    .gallery-grid figure {
+      position:relative; overflow:hidden; border-radius:8px;
+      aspect-ratio: 1 / 1; cursor:pointer;
+      box-shadow:0 2px 10px rgba(180,140,100,.08);
+    }
+    .gallery-grid img {
+      width:100%; height:100%; object-fit:cover; display:block;
+      transition:transform .5s cubic-bezier(0.16,1,0.3,1);
+    }
+    .gallery-grid figure:hover img { transform:scale(1.06); }
+
+    .empty-note {
+      font-size:13px; color:var(--light); font-weight:300; font-style:italic;
+      padding:18px 0;
+    }
+
+    .playlist-embed {
+      border-radius:12px;
+      box-shadow:0 4px 32px rgba(180,140,100,.1);
+      overflow:hidden;
+    }
+    .playlist-embed iframe { display:block; }
+
+    /* LIGHTBOX */
+    #lightbox {
+      position:fixed; inset:0; background:rgba(24,18,14,.94);
+      display:none; align-items:center; justify-content:center;
+      z-index:500; padding:24px;
+    }
+    #lightbox.open { display:flex; }
+    #lightbox img {
+      max-width:90vw; max-height:82vh; border-radius:6px;
+      box-shadow:0 20px 60px rgba(0,0,0,.4);
+    }
+    .lb-close, .lb-prev, .lb-next {
+      position:absolute; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.2);
+      color:#fff; width:44px; height:44px; border-radius:50%; cursor:pointer;
+      display:flex; align-items:center; justify-content:center; font-size:18px;
+      transition:background .2s;
+    }
+    .lb-close:hover, .lb-prev:hover, .lb-next:hover { background:rgba(255,255,255,.2); }
+    .lb-close { top:20px; right:20px; }
+    .lb-prev { left:20px; top:50%; transform:translateY(-50%); }
+    .lb-next { right:20px; top:50%; transform:translateY(-50%); }
+    .lb-count {
+      position:absolute; bottom:20px; left:50%; transform:translateX(-50%);
+      color:rgba(255,255,255,.7); font-size:12px; letter-spacing:1px;
+    }
+    @media(max-width:600px){
+      .lb-prev{left:8px;} .lb-next{right:8px;} .lb-close{top:12px;right:12px;}
+    }
+
+    /* FOOTER */
+    footer { padding:80px 32px 60px; text-align:center; position:relative; overflow:hidden; }
+    footer::before {
+      content:''; position:absolute; inset:0;
+      background:
+        radial-gradient(ellipse 70% 60% at 10% 90%,rgba(242,208,198,.32) 0%,transparent 60%),
+        radial-gradient(ellipse 60% 50% at 90% 10%,rgba(200,222,204,.28) 0%,transparent 55%);
+    }
+    footer>*{position:relative;z-index:1;}
+    .footer-names { font-family:var(--serif); font-style:italic; font-size:clamp(30px,7vw,44px); font-weight:300; color:var(--ink); }
+    .footer-date  { margin-top:10px; font-size:9px; letter-spacing:6px; text-transform:uppercase; color:var(--light); font-weight:300; }
+
+    .footer-fine { margin-top:50px; font-size:10px; letter-spacing:2px; color:var(--light); font-weight:300; }
+
+    .reveal { opacity:0; transform:translateY(22px); transition:opacity .8s ease,transform .8s ease; }
+    .reveal.in { opacity:1; transform:none; }
+
+    @media(max-width:520px){
+      .section{padding:44px 18px;}
+      .fund-wrap{padding:26px 22px;}
+      .gallery-grid{grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));}
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-bg">
+      <div class="blob blob-1"></div>
+      <div class="blob blob-2"></div>
+      <div class="blob blob-3"></div>
+    </div>
+    <p class="hero-eyebrow">Thank you for celebrating with us</p>
+    <h1 class="hero-names">
+      Marcial
+      <span class="hero-and">&amp;</span>
+      Nadine
+    </h1>
+    <div class="hero-info">
+      <p class="hero-date">Friday · 31 July 2026</p>
+      <p class="hero-loc">Rotterdam, The Netherlands</p>
+    </div>
+    <p class="hero-thanks">Here are the moments from our day, thank you for being part of it!</p>
+  </section>
+
+  <!-- PLAYLIST -->
+  <div class="section playlist-section reveal">
+    <div class="s-header">
+      <h2 class="s-title">Our Wedding Playlist</h2>
+    </div>
+    <div class="playlist-embed">
+      <iframe
+        style="border-radius:12px"
+        src="https://open.spotify.com/embed/playlist/1KH0eZ9N6Q0LWTBZyxrAQ4?utm_source=generator"
+        width="100%"
+        height="452"
+        frameBorder="0"
+        allowfullscreen=""
+        allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+        loading="lazy">
+      </iframe>
+    </div>
+  </div>
+
+  <!-- GALLERIES: filled in by script below, one per moment -->
+  <div id="galleries"></div>
+
+  <!-- LIGHTBOX -->
+  <div id="lightbox">
+    <button class="lb-close" onclick="closeLightbox()">✕</button>
+    <button class="lb-prev" onclick="navLightbox(-1)">‹</button>
+    <img id="lb-img" src="" alt="">
+    <button class="lb-next" onclick="navLightbox(1)">›</button>
+    <div class="lb-count" id="lb-count"></div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-names">Marcial &amp; Nadine</div>
+    <div class="footer-date">31 · 07 · 2026 · Rotterdam</div>
+
+    <p class="footer-fine">Marcial &amp; Nadine · Rotterdam · 2026</p>
+  </footer>
+
+<script>
+  /* ============ CONFIG: one entry per moment of the day ============
+     key    -> folder name inside /photos/
+     title  -> section heading
+     maxTry -> safety ceiling; the gallery stops as soon as it hits the
+               first missing number, so this just needs to be higher
+               than the most photos you'll ever add to that folder.
+  =================================================================== */
+  const MOMENTS = [
+    { key: 'civil',     title: 'Civil Marriage',   maxTry: 60 },
+    { key: 'ceremony',  title: 'Wedding Ceremony', maxTry: 80 },
+    { key: 'reception', title: 'Reception',        maxTry: 80 },
+    { key: 'party',     title: 'Party 🎶',         maxTry: 120 },
+  ];
+
+  let allSections = []; // { key, photos: [] }
+  let lb = { sectionIndex: 0, photoIndex: 0 };
+
+  function tryLoad(src) {
+    return new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => resolve(true);
+      img.onerror = () => resolve(false);
+      img.src = src;
+    });
+  }
+
+  async function loadMomentPhotos(moment) {
+    const photos = [];
+    for (let i = 1; i <= moment.maxTry; i++) {
+      const src = `photos/${moment.key}/${i}.jpg`;
+      const ok = await tryLoad(src);
+      if (!ok) break;
+      photos.push(src);
+    }
+    return photos;
+  }
+
+  async function buildGalleries() {
+    const container = document.getElementById('galleries');
+    for (const moment of MOMENTS) {
+      const photos = await loadMomentPhotos(moment);
+      allSections.push({ key: moment.key, photos });
+
+      const section = document.createElement('div');
+      section.className = 'section reveal';
+      section.innerHTML = `
+        <div class="s-header">
+          <h2 class="s-title">${moment.title}</h2>
+        </div>
+        ${photos.length
+          ? `<div class="gallery-grid">${photos.map((src, i) => `
+              <figure onclick="openLightbox('${moment.key}', ${i})">
+                <img src="${src}" loading="lazy" alt="${moment.title} photo ${i + 1}">
+              </figure>`).join('')}</div>`
+          : `<p class="empty-note">Photos coming soon</p>`
+        }
+      `;
+      container.appendChild(section);
+    }
+    initReveal();
+  }
+
+  function openLightbox(key, photoIndex) {
+    const sectionIndex = allSections.findIndex(s => s.key === key);
+    lb = { sectionIndex, photoIndex };
+    showLightboxImage();
+    document.getElementById('lightbox').classList.add('open');
+  }
+  function closeLightbox() {
+    document.getElementById('lightbox').classList.remove('open');
+  }
+  function navLightbox(dir) {
+    const section = allSections[lb.sectionIndex];
+    lb.photoIndex = (lb.photoIndex + dir + section.photos.length) % section.photos.length;
+    showLightboxImage();
+  }
+  function showLightboxImage() {
+    const section = allSections[lb.sectionIndex];
+    document.getElementById('lb-img').src = section.photos[lb.photoIndex];
+    document.getElementById('lb-count').textContent = `${lb.photoIndex + 1} / ${section.photos.length}`;
+  }
+  document.addEventListener('keydown', e => {
+    if (!document.getElementById('lightbox').classList.contains('open')) return;
+    if (e.key === 'Escape') closeLightbox();
+    if (e.key === 'ArrowLeft') navLightbox(-1);
+    if (e.key === 'ArrowRight') navLightbox(1);
+  });
+
+  function initReveal() {
+    const obs = new IntersectionObserver(entries => {
+      entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); obs.unobserve(e.target); } });
+    }, { threshold: 0.1 });
+    document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
+  }
+
+  buildGalleries();
+</script>
+</body>
+</html>
