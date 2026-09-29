@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Marcial & Nadine — 31.07.2026</title>
+  <title>Nadine & Marcial — 31.07.2026</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
   <style>
@@ -118,6 +118,7 @@
     .s-header { margin-bottom:28px; }
     .s-title { font-family:var(--serif); font-size:clamp(26px,4vw,36px); font-weight:400; color:var(--ink); }
     .s-title .emoji { font-family:var(--sans); }
+    .s-subtitle { margin-top:8px; font-size:14px; color:var(--mid); font-weight:300; font-style:italic; }
 
     .tabs {
       display:flex; gap:4px; flex-wrap:wrap;
@@ -136,6 +137,7 @@
 
     .gallery-rows { display:flex; flex-direction:column; gap:8px; }
     .gallery-row { display:flex; gap:8px; }
+    .gallery-row--leftover { justify-content:center; }
     .gallery-row figure {
       position:relative; overflow:hidden; border-radius:8px; cursor:pointer;
       flex-shrink:0; box-shadow:0 2px 10px rgba(180,140,100,.08); background:var(--ivory);
@@ -229,7 +231,7 @@
     <div class="blob" style="width:400px;height:400px;background:#F2D0C6;top:-100px;left:-150px;"></div>
     <div class="blob" style="width:350px;height:350px;background:#C8DECC;top:30px;right:-100px;"></div>
     <p class="gate-eyebrow">Thank you for celebrating with us</p>
-    <h1 class="gate-names">Marcial<span class="gate-and">&amp;</span>Nadine</h1>
+    <h1 class="gate-names">Nadine<span class="gate-and">&amp;</span>Marcial</h1>
     <div class="gate-info">
       <p class="gate-date">Friday · 31 July 2026</p>
       <p class="gate-loc">Rotterdam, The Netherlands</p>
@@ -253,9 +255,9 @@
     </div>
     <p class="hero-eyebrow">Thank you for celebrating with us</p>
     <h1 class="hero-names">
-      Marcial
-      <span class="hero-and">&amp;</span>
       Nadine
+      <span class="hero-and">&amp;</span>
+      Marcial
     </h1>
     <div class="hero-info">
       <p class="hero-date">Friday · 31 July 2026</p>
@@ -268,6 +270,7 @@
   <div class="section playlist-section reveal">
     <div class="s-header">
       <h2 class="s-title">Our Wedding Playlist</h2>
+      <p class="s-subtitle">A glimpse of the night's music</p>
     </div>
     <div class="playlist-embed">
       <iframe
@@ -311,10 +314,10 @@
 
   <!-- FOOTER -->
   <footer>
-    <div class="footer-names">Marcial &amp; Nadine</div>
+    <div class="footer-names">Nadine &amp; Marcial</div>
     <div class="footer-date">31 · 07 · 2026 · Rotterdam</div>
 
-    <p class="footer-fine">Marcial &amp; Nadine · Rotterdam · 2026</p>
+    <p class="footer-fine">Nadine &amp; Marcial · Rotterdam · 2026</p>
   </footer>
 
   <button id="backToTop" aria-label="Back to top" title="Back to top">↑</button>
@@ -355,10 +358,9 @@
                than the most photos you'll ever add to that folder.
   =================================================================== */
   const MOMENTS = [
-    { key: 'civil',     title: 'Civil Marriage',   maxTry: 400 },
-    { key: 'ceremony',  title: 'Wedding Ceremony', maxTry: 400 },
-    { key: 'reception', title: 'Reception',        maxTry: 400 },
-    { key: 'party',     title: 'Party 🎶',         maxTry: 400 },
+    { key: 'civil',     title: 'Civil Marriage',    maxTry: 400 },
+    { key: 'ceremony',  title: 'Wedding Ceremony',  maxTry: 400 },
+    { key: 'reception', title: 'Reception & Party', maxTry: 400 },
   ];
 
   const FIRST_BATCH = 10;
@@ -433,7 +435,7 @@
   // it fill edge to edge. The final, still-incomplete row is left at the
   // target height, unstretched — never a ragged gap, just a normal-looking
   // partial row exactly like Flickr/Google Photos do.
-  function layoutRows(items, containerWidth, targetH) {
+  function layoutRows(items, containerWidth, targetH, stretchLast) {
     const rows = [];
     let buffer = [];
 
@@ -444,12 +446,24 @@
       if (widthAtTarget >= containerWidth) {
         const totalAspect = buffer.reduce((s, it) => s + it.aspect, 0);
         const rowHeight = (containerWidth - ROW_GAP * (buffer.length - 1)) / totalAspect;
-        rows.push({ height: rowHeight, items: buffer.map(it => ({ ...it, width: rowHeight * it.aspect })) });
+        rows.push({ height: rowHeight, items: buffer.map(it => ({ ...it, width: rowHeight * it.aspect })), leftover: false });
         buffer = [];
       }
     });
     if (buffer.length) {
-      rows.push({ height: targetH, items: buffer.map(it => ({ ...it, width: targetH * it.aspect })) });
+      if (stretchLast) {
+        // This set of items will never receive more (e.g. the fixed
+        // "first 10" hero photos), so it's safe to stretch the final
+        // row to fill the width properly, same as a complete row.
+        const totalAspect = buffer.reduce((s, it) => s + it.aspect, 0);
+        const rowHeight = (containerWidth - ROW_GAP * (buffer.length - 1)) / totalAspect;
+        rows.push({ height: rowHeight, items: buffer.map(it => ({ ...it, width: rowHeight * it.aspect })), leftover: false });
+      } else {
+        // This set may still grow (more photos loading in via "Load
+        // more"), so leave the last row unstretched for now — it'll be
+        // recomputed and likely fill in once more photos arrive.
+        rows.push({ height: targetH, items: buffer.map(it => ({ ...it, width: targetH * it.aspect })), leftover: true });
+      }
     }
     return rows;
   }
@@ -466,11 +480,11 @@
     const containerWidth = content.clientWidth || content.parentElement.clientWidth;
     const heroItems = s.items.slice(0, FIRST_BATCH);
     const restItems = s.items.slice(FIRST_BATCH);
-    const heroRows = layoutRows(heroItems, containerWidth, targetRowHeight('hero'));
-    const restRows = layoutRows(restItems, containerWidth, targetRowHeight('normal'));
+    const heroRows = layoutRows(heroItems, containerWidth, targetRowHeight('hero'), true);
+    const restRows = layoutRows(restItems, containerWidth, targetRowHeight('normal'), false);
 
     const renderRow = row => `
-      <div class="gallery-row" style="height:${row.height}px">
+      <div class="gallery-row${row.leftover ? ' gallery-row--leftover' : ''}" style="height:${row.height}px">
         ${row.items.map(it => {
           const idx = s.items.findIndex(x => x.fullSrc === it.fullSrc);
           return `
