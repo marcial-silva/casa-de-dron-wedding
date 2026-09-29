@@ -145,14 +145,18 @@
     .gallery-row img { width:100%; height:100%; display:block; object-fit:cover; transition:transform .4s ease; }
     .gallery-row figure:hover img { transform:scale(1.04); }
 
-    .load-more-wrap { text-align:center; margin-top:28px; }
+    .load-more-wrap { text-align:center; margin-top:32px; }
     .load-more-btn {
-      padding:12px 30px; border:1.5px solid var(--gold); background:transparent; color:var(--gold);
-      font-family:var(--sans); font-size:11px; letter-spacing:2px; text-transform:uppercase;
+      padding:14px 34px; border:none; background:var(--sage); color:#fff;
+      font-family:var(--sans); font-size:12px; letter-spacing:2px; text-transform:uppercase;
       cursor:pointer; border-radius:40px; transition:all .25s ease;
+      box-shadow:0 4px 20px rgba(142,175,158,.4);
+      display:inline-flex; align-items:center; gap:8px;
     }
-    .load-more-btn:hover { background:var(--gold); color:#fff; }
-    .load-more-btn:disabled { opacity:.4; cursor:default; }
+    .load-more-btn:hover { background:#79A08D; box-shadow:0 6px 24px rgba(142,175,158,.5); transform:translateY(-1px); }
+    .load-more-btn:disabled { opacity:.5; cursor:default; transform:none; }
+    .load-more-btn .arrow { font-size:14px; transition:transform .2s; }
+    .load-more-btn:hover .arrow { transform:translateY(2px); }
 
     .video-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px; }
     .video-wrap {
@@ -488,13 +492,23 @@
     const rowsHTML = heroRows.map(renderRow).join('') + restRows.map(renderRow).join('');
 
     const hasMore = s.loadedCount < s.urls.length;
+    const remaining = s.urls.length - s.loadedCount;
     content.innerHTML = `
       <div class="gallery-rows">${rowsHTML}</div>
-      ${hasMore ? `<div class="load-more-wrap"><button class="load-more-btn" id="loadMoreBtn">Load more</button></div>` : ''}
+      ${hasMore ? `<div class="load-more-wrap"><button class="load-more-btn" id="loadMoreBtn">Load ${Math.min(remaining, BATCH_SIZE)} more photos <span class="arrow">↓</span></button></div>` : ''}
     `;
     if (hasMore) {
       document.getElementById('loadMoreBtn').addEventListener('click', () => loadNextBatch(activeKey));
     }
+  }
+
+  let renderTimer = null;
+  function scheduleRender() {
+    if (renderTimer) return;
+    renderTimer = setTimeout(() => {
+      renderTimer = null;
+      renderActiveTab();
+    }, 100);
   }
 
   async function loadNextBatch(key, count = BATCH_SIZE) {
@@ -519,7 +533,7 @@
         let contiguous = 0;
         while (contiguous < slots.length && slots[contiguous]) contiguous++;
         s.items = s.items.slice(0, baseCount).concat(slots.slice(0, contiguous));
-        if (key === activeKey) renderActiveTab();
+        if (key === activeKey) scheduleRender();
       })
     );
 
