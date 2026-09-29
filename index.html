@@ -451,17 +451,22 @@
       }
     });
     if (buffer.length) {
-      if (stretchLast) {
+      const totalAspect = buffer.reduce((s, it) => s + it.aspect, 0);
+      const naiveHeight = (containerWidth - ROW_GAP * (buffer.length - 1)) / totalAspect;
+
+      if (stretchLast && naiveHeight <= targetH * 1.6) {
         // This set of items will never receive more (e.g. the fixed
         // "first 10" hero photos), so it's safe to stretch the final
-        // row to fill the width properly, same as a complete row.
-        const totalAspect = buffer.reduce((s, it) => s + it.aspect, 0);
-        const rowHeight = (containerWidth - ROW_GAP * (buffer.length - 1)) / totalAspect;
-        rows.push({ height: rowHeight, items: buffer.map(it => ({ ...it, width: rowHeight * it.aspect })), leftover: false });
+        // row to fill the width properly, same as a complete row —
+        // but only when that doesn't require blowing a photo up far
+        // past its actual resolution (e.g. a single portrait photo
+        // alone in the row, which would need extreme scaling to fill
+        // a wide container and would come out pixelated).
+        rows.push({ height: naiveHeight, items: buffer.map(it => ({ ...it, width: naiveHeight * it.aspect })), leftover: false });
       } else {
-        // This set may still grow (more photos loading in via "Load
-        // more"), so leave the last row unstretched for now — it'll be
-        // recomputed and likely fill in once more photos arrive.
+        // Either this set may still grow (more photos loading in via
+        // "Load more"), or stretching would require excessive scaling —
+        // leave it at natural size and centered instead of forcing a fill.
         rows.push({ height: targetH, items: buffer.map(it => ({ ...it, width: targetH * it.aspect })), leftover: true });
       }
     }
@@ -513,10 +518,27 @@
     if (btn) { btn.disabled = true; btn.textContent = 'Loading…'; }
 
     const nextNums = s.urls.slice(s.loadedCount, s.loadedCount + count);
-    const measured = await Promise.all(nextNums.map(num => measureItem(moment, num)));
-    s.items.push(...measured);
-    s.loadedCount += nextNums.length;
+    const baseCount = s.loadedCount;
+    const slots = new Array(nextNums.length);
 
+    // Fire off every photo's measurement in parallel, but reveal them in
+    // order as a contiguous prefix — so photo 1 shows the moment it's
+    // ready, then photo 2, and so on. A single slow or missing thumbnail
+    // only holds up photos after it in sequence, instead of blocking the
+    // entire batch from appearing at all (which is what happened before,
+    // since we waited for every photo to finish before showing any of them).
+    const promises = nextNums.map((num, idx) =>
+      measureItem(moment, num).then(item => {
+        slots[idx] = item;
+        let contiguous = 0;
+        while (contiguous < slots.length && slots[contiguous]) contiguous++;
+        s.items = s.items.slice(0, baseCount).concat(slots.slice(0, contiguous));
+        if (key === activeKey) renderActiveTab();
+      })
+    );
+
+    await Promise.all(promises);
+    s.loadedCount = baseCount + nextNums.length;
     if (key === activeKey) renderActiveTab();
   }
 
