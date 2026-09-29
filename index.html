@@ -373,7 +373,7 @@
 
   // Per-moment state, built lazily the first time its tab is opened.
   const state = {}; // key -> { urls: [], items: [], loadedCount: 0, built: false }
-  MOMENTS.forEach(m => state[m.key] = { urls: [], items: [], loadedCount: 0, built: false });
+  MOMENTS.forEach(m => state[m.key] = { urls: [], items: [], loadedCount: 0, built: false, discoveryDone: false });
 
   let activeKey = MOMENTS[0].key;
   let lb = { key: null, photoIndex: 0 };
@@ -492,10 +492,11 @@
     const rowsHTML = heroRows.map(renderRow).join('') + restRows.map(renderRow).join('');
 
     const hasMore = s.loadedCount < s.urls.length;
-    const remaining = s.urls.length - s.loadedCount;
+    const stillChecking = !s.discoveryDone && !hasMore;
     content.innerHTML = `
       <div class="gallery-rows">${rowsHTML}</div>
-      ${hasMore ? `<div class="load-more-wrap"><button class="load-more-btn" id="loadMoreBtn">Load ${Math.min(remaining, BATCH_SIZE)} more photos <span class="arrow">↓</span></button></div>` : ''}
+      ${hasMore ? `<div class="load-more-wrap"><button class="load-more-btn" id="loadMoreBtn">Load more <span class="arrow">↓</span></button></div>` : ''}
+      ${stillChecking ? `<p class="empty-note" style="text-align:center;">Checking for more photos…</p>` : ''}
     `;
     if (hasMore) {
       document.getElementById('loadMoreBtn').addEventListener('click', () => loadNextBatch(activeKey));
@@ -567,6 +568,7 @@
       }
       s.urls = quickUrls;
       s.built = true;
+      s.discoveryDone = quickUrls.length < firstCount; // hit a gap already = nothing more to check
       if (quickUrls.length) await loadNextBatch(key, quickUrls.length);
       else renderActiveTab();
 
@@ -575,6 +577,7 @@
       if (quickUrls.length === firstCount) {
         discoverUrls(moment, firstCount + 1).then(restUrls => {
           s.urls = quickUrls.concat(restUrls);
+          s.discoveryDone = true;
           if (key === activeKey) renderActiveTab();
         });
       }
